@@ -104,6 +104,40 @@
     }
     .overlay[hidden] { display: none; }
 
+    /* Выбор устройства */
+    .device-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-top: 20px;
+    }
+    .device-option {
+      cursor: pointer;
+      background: rgba(255,255,255,0.08);
+      border: 2px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 20px;
+      transition: all 0.2s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+    .device-option:hover {
+      background: rgba(255,255,255,0.15);
+      border-color: var(--accent);
+      transform: translateY(-4px);
+    }
+    .device-option svg {
+      width: 64px;
+      height: 64px;
+      fill: var(--text);
+    }
+    .device-option span {
+      font-weight: 800;
+      font-size: 16px;
+    }
+
     .card {
       width: min(520px, 92%);
       border-radius: 16px;
@@ -308,7 +342,24 @@
 
       <div id="paused" class="pausedTag" hidden>PAUSED</div>
 
-      <div id="menu" class="overlay">
+      <div id="deviceSelect" class="overlay">
+        <div class="card">
+          <h1>Выберите устройство</h1>
+          <p>Для оптимального управления и отображения</p>
+          <div class="device-grid">
+            <div class="device-option" id="selectPC">
+              <svg viewBox="0 0 24 24"><path d="M20,18H4V4H20M20,2H4C2.89,2 2,2.89 2,4V18C2,19.1 2.89,20 4,20H9V22H15V20H20C21.1,20 22,19.1 22,18V4C22,2.89 21.1,2 20,2Z"/></svg>
+              <span>Компьютер</span>
+            </div>
+            <div class="device-option" id="selectMobile">
+              <svg viewBox="0 0 24 24"><path d="M17,19H7V5H17M17,1H7C5.89,1 5,1.89 5,3V21C5,22.1 5.89,23 7,23H17C18.1,23 19,22.1 19,21V3C19,1.89 18.1,1 17,1Z"/></svg>
+              <span>Телефон</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="menu" class="overlay" hidden>
         <div class="card">
           <h1>Начать игру</h1>
           <p>Двигайся по низу экрана и избегай падающих фруктов.</p>
@@ -495,8 +546,12 @@
       const ctx = canvas.getContext("2d", { alpha: true });
 
       const elMenu = document.getElementById("menu");
+      const elDeviceSelect = document.getElementById("deviceSelect");
       const elGameOver = document.getElementById("gameOver");
       const elPaused = document.getElementById("paused");
+
+      const selectPC = document.getElementById("selectPC");
+      const selectMobile = document.getElementById("selectMobile");
 
       const elScore = document.getElementById("score");
       const elHighScore = document.getElementById("highScore");
@@ -521,10 +576,28 @@
       // =========================
       // Определение устройства
       // =========================
-      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-      if (isMobile) {
-        document.body.classList.add("is-mobile");
+      let isMobile = false;
+
+      function setDevice(mobile) {
+        isMobile = mobile;
+        if (isMobile) {
+          document.body.classList.add("is-mobile");
+          CONFIG.CANVAS_H = 1000; // Увеличиваем высоту для мобилок
+          canvas.height = 1000;
+          // Пересчитываем позицию игрока
+          player.y = CONFIG.CANVAS_H - player.h - CONFIG.PLAYER_Y_MARGIN + player.hitboxOffsetY;
+        } else {
+          document.body.classList.remove("is-mobile");
+          CONFIG.CANVAS_H = 600;
+          canvas.height = 600;
+          player.y = CONFIG.CANVAS_H - player.h - CONFIG.PLAYER_Y_MARGIN + player.hitboxOffsetY;
+        }
+        elDeviceSelect.hidden = true;
+        elMenu.hidden = false;
       }
+
+      selectPC.addEventListener("click", () => setDevice(false));
+      selectMobile.addEventListener("click", () => setDevice(true));
 
       function loadImages(urls) {
         return Promise.all(urls.map((src) => new Promise((resolve, reject) => {
@@ -537,6 +610,7 @@
 
       function showMenu() {
         elMenu.hidden = false;
+        elDeviceSelect.hidden = true;
         elGameOver.hidden = true;
         elPaused.hidden = true;
         if (elGameOverBadIcon) elGameOverBadIcon.hidden = true;
@@ -1361,7 +1435,10 @@
       // =========================
       setHighUI(highScore);
       setScoreUI(0);
-      showMenu();
+      
+      // Сначала показываем выбор устройства
+      elDeviceSelect.hidden = false;
+      elMenu.hidden = true;
 
       // первично синхронизируем выбранные превью в окне скинов
       pendingAvatarId = activeAvatarId;
