@@ -1,0 +1,1308 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Dodge Food (Canvas)</title>
+  <style>
+    :root {
+      --bg: #0f1220;
+      --panel: rgba(255,255,255,0.08);
+      --text: #e9ecff;
+      --muted: rgba(233,236,255,0.7);
+      --accent: #7cf7c0;
+      --danger: #ff6b6b;
+      --site-bg: #d5b776;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans", "Helvetica Neue", sans-serif;
+      color: var(--text);
+      background: var(--site-bg);
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+    }
+
+    .wrap {
+      width: min(980px, 96vw);
+      padding: 18px;
+      display: grid;
+      gap: 14px;
+    }
+
+    header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      background: var(--panel);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.10);
+    }
+    header .title {
+      font-weight: 800;
+      letter-spacing: 0.3px;
+    }
+    header .help {
+      font-size: 13px;
+      color: var(--muted);
+      text-align: right;
+      line-height: 1.35;
+    }
+
+    .stage {
+      position: relative;
+      border-radius: 16px;
+      overflow: hidden;
+      background: rgba(0,0,0,0.25);
+      border: 1px solid rgba(255,255,255,0.10);
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+    }
+
+    .hud {
+      position: absolute;
+      inset: 12px 12px auto 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      pointer-events: none;
+      font-weight: 700;
+      text-shadow: 0 2px 14px rgba(0,0,0,0.35);
+    }
+    .hud .pill {
+      pointer-events: none;
+      background: rgba(0,0,0,0.35);
+      border: 1px solid rgba(255,255,255,0.12);
+      padding: 8px 10px;
+      border-radius: 999px;
+      font-size: 14px;
+      display: inline-flex;
+      gap: 10px;
+      align-items: center;
+    }
+    .hud .pill span { color: var(--muted); font-weight: 600; }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 18px;
+      background: radial-gradient(800px 500px at 50% 30%, rgba(0,0,0,0.55), rgba(0,0,0,0.75));
+    }
+    .overlay[hidden] { display: none; }
+
+    .card {
+      width: min(520px, 92%);
+      border-radius: 16px;
+      padding: 18px 18px 16px;
+      background: rgba(20, 24, 44, 0.72);
+      border: 1px solid rgba(255,255,255,0.12);
+      box-shadow: 0 18px 60px rgba(0,0,0,0.45);
+      text-align: center;
+    }
+    .card h1 {
+      margin: 0 0 8px;
+      font-size: 26px;
+      letter-spacing: 0.2px;
+    }
+    .card p {
+      margin: 6px 0;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+    .row {
+      margin-top: 12px;
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    button {
+      cursor: pointer;
+      border: 0;
+      border-radius: 12px;
+      padding: 10px 14px;
+      font-weight: 800;
+      letter-spacing: 0.2px;
+      color: #0b0f14;
+      background: linear-gradient(180deg, #9bffda, var(--accent));
+      box-shadow: 0 10px 28px rgba(124,247,192,0.25);
+      transition: transform 120ms ease, filter 120ms ease;
+    }
+    button:hover { transform: translateY(-1px); filter: brightness(1.02); }
+    button:active { transform: translateY(0px); filter: brightness(0.98); }
+    button.secondary {
+      background: rgba(255,255,255,0.10);
+      color: var(--text);
+      border: 1px solid rgba(255,255,255,0.14);
+      box-shadow: none;
+    }
+
+    .pausedTag {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      font-weight: 900;
+      font-size: 42px;
+      letter-spacing: 4px;
+      color: rgba(233,236,255,0.90);
+      background: rgba(0,0,0,0.35);
+      text-shadow: 0 18px 60px rgba(0,0,0,0.65);
+      pointer-events: none;
+    }
+    .pausedTag[hidden] { display: none; }
+
+    footer {
+      color: var(--muted);
+      font-size: 12px;
+      text-align: center;
+      padding: 2px 6px 0;
+    }
+    kbd {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 12px;
+      padding: 2px 6px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.18);
+      background: rgba(0,0,0,0.25);
+      color: rgba(233,236,255,0.92);
+    }
+
+    #gameOverBadIcon {
+      width: 120px;
+      height: auto;
+      display: block;
+      margin: 0 auto 10px;
+      image-rendering: auto;
+      filter: drop-shadow(0 10px 24px rgba(0,0,0,0.35));
+    }
+
+    .skinGrid {
+      margin-top: 12px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      text-align: left;
+    }
+    .skinTitle {
+      color: var(--muted);
+      font-weight: 800;
+      margin: 0 0 8px;
+      font-size: 13px;
+    }
+    .skinOptions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+    .skinOption {
+      cursor: pointer;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(255,255,255,0.08);
+      width: 92px;
+      height: 110px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 8px 8px 10px;
+      gap: 8px;
+      transition: transform 120ms ease, border-color 120ms ease, filter 120ms ease;
+    }
+    .skinOption:hover {
+      transform: translateY(-1px);
+      border-color: rgba(124,247,192,0.5);
+    }
+    .skinOption.selected {
+      border-color: rgba(124,247,192,0.95);
+      box-shadow: 0 0 0 2px rgba(124,247,192,0.18);
+    }
+    .skinOption img {
+      max-width: 72px;
+      max-height: 72px;
+      object-fit: contain;
+      display: block;
+    }
+    .skinLabel {
+      font-weight: 900;
+      font-size: 12px;
+      color: rgba(233,236,255,0.92);
+      text-align: center;
+      line-height: 1.1;
+      padding: 0 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .skinGradPreview {
+      width: 72px;
+      height: 72px;
+      border-radius: 14px;
+      box-shadow: 0 14px 40px rgba(0,0,0,0.35) inset;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <header>
+      <div class="title">Рамадан симулятор — уклоняйся от падающей еды, не нарушь пост! Лови портрет Аллаха и он простит тебя.</div>
+      <div class="help">
+        Управление: <kbd>←</kbd>/<kbd>→</kbd> — движение, <kbd>P</kbd> — пауза<br/>
+        Очки: +1 за каждый фрукт, пролетевший ниже игрока
+      </div>
+    </header>
+
+    <div class="stage" aria-label="Игровая сцена">
+      <canvas id="game" width="800" height="600"></canvas>
+
+      <div class="hud" aria-hidden="true">
+        <div class="pill"><strong>Счёт:</strong> <span id="score">0</span></div>
+        <div class="pill"><strong>Рекорд:</strong> <span id="highScore">0</span></div>
+        <div class="pill"><strong>Жизни:</strong> <span id="lives">❤❤❤</span></div>
+      </div>
+
+      <div id="paused" class="pausedTag" hidden>PAUSED</div>
+
+      <div id="menu" class="overlay">
+        <div class="card">
+          <h1>Начать игру</h1>
+          <p>Двигайся по низу экрана и избегай падающих фруктов.</p>
+          <p>Нажми <kbd>P</kbd>, чтобы поставить на паузу во время игры.</p>
+          <div class="row">
+            <button id="startBtn">Start Game</button>
+            <button id="skinBtn" class="secondary" type="button">Скины</button>
+          </div>
+          <p style="margin-top:10px;">
+            Текущее полотно: 800×600 (масштабируется под окно без изменения логики).
+          </p>
+        </div>
+      </div>
+
+      <div id="gameOver" class="overlay" hidden>
+        <div class="card">
+          <img id="gameOverBadIcon" src="./assets/haram.png" alt="HARAM" hidden />
+          <h1 style="color: var(--danger);">Game Over</h1>
+          <p><strong>Финальный счёт:</strong> <span id="finalScore">0</span></p>
+          <p><strong>Рекорд:</strong> <span id="finalHighScore">0</span></p>
+          <div class="row">
+            <button id="playAgainBtn">Play Again</button>
+            <button id="backToMenuBtn" class="secondary">Menu</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="skinPicker" class="overlay" hidden>
+        <div class="card">
+          <h1>Выбор скина</h1>
+          <p style="margin-top:0;">Аватар и фон для вашего забега.</p>
+
+          <div class="skinGrid">
+            <div>
+              <div class="skinTitle">Аватар</div>
+              <div class="skinOptions" id="avatarOptions">
+                <button class="skinOption selected" data-avatar="default" type="button">
+                  <img src="./assets/player.png" alt="Avatar" />
+                  <div class="skinLabel">Стандарт</div>
+                </button>
+                <button class="skinOption" data-avatar="woman" type="button">
+                  <img src="./assets/woman.png" alt="Женщина" />
+                  <div class="skinLabel">Женщина</div>
+                </button>
+              </div>
+            </div>
+            <div>
+              <div class="skinTitle">Фон</div>
+              <div class="skinOptions" id="bgOptions">
+                <button class="skinOption selected" data-bg="default" type="button">
+                  <img src="./assets/background.png" alt="Background" />
+                  <div class="skinLabel">Классика</div>
+                </button>
+                <button class="skinOption" data-bg="sunrise" type="button">
+                  <div class="skinGradPreview" style="background: linear-gradient(135deg,#d5b776 0%, #7cf7c0 55%, #4cc9f0 100%);"></div>
+                  <div class="skinLabel">Рассвет</div>
+                </button>
+                <button class="skinOption" data-bg="night" type="button">
+                  <div class="skinGradPreview" style="background: linear-gradient(135deg,#0f1220 0%, #1a1f3a 50%, #0a0c14 100%);"></div>
+                  <div class="skinLabel">Ночь</div>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="row" style="margin-top:16px;">
+            <button id="skinApplyBtn">Применить</button>
+            <button id="skinCloseBtn" class="secondary" type="button">Назад</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      Совет: если окно меньше, игра автоматически масштабируется, но расчёты остаются в координатах 800×600.
+    </footer>
+  </div>
+
+  <script>
+    (() => {
+      "use strict";
+
+      // =========================
+      // Конфиг (легко тюнить)
+      // =========================
+      const CONFIG = {
+        CANVAS_W: 800,
+        CANVAS_H: 600,
+
+        BACKGROUND_SPRITE: "./assets/background.png",
+
+        // Звуки
+        SOUNDS: {
+          DAMAGE: ["./sound/damage1.mp3", "./sound/damage2.mp3", "./sound/damage3.mp3"],
+          BG: ["./sound/bg1.mp3", "./sound/bg2.mp3", "./sound/bg3.mp3"],
+          HEAL: "./sound/heal.mp3",
+          GAMEOVER: "./sound/gameover.mp3"
+        },
+
+        BG_VOLUME: 0.5, // Громкость фоновой музыки (0.0 - 1.0)
+
+        // Игрок: отдельно размеры изображения и хитбокса
+        // DRAW_* — насколько крупно рисовать PNG
+        // HITBOX_* — по чему считаются столкновения и границы движения
+        PLAYER_DRAW_W: 190,
+        PLAYER_DRAW_H: 190,
+        PLAYER_HITBOX_W: 105,
+        PLAYER_HITBOX_H: 50,
+        PLAYER_HITBOX_OFFSET_Y: -10, // отрицательное значение поднимает хитбокс выше
+        PLAYER_Y_MARGIN: 18,
+        PLAYER_SPEED: 240, // px/sec (базовая скорость игрока)
+        PLAYER_SPEED_MAX: 420, // ограничение, чтобы игрок не ускорялся слишком сильно
+        PLAYER_SPRITE: "./assets/player.png",
+        PLAYER_WOMAN_SPRITE: "./assets/woman.png",
+        INVINCIBLE_SEC: 2.0,
+        PLAYER_INVINCIBLE_ALPHA: 0.55,
+        UNPAUSE_COUNTDOWN_SEC: 3,
+
+        // Увеличили еду и замедлили падение/нарастание скорости
+        FOOD_RADIUS_MIN: 26,
+        FOOD_RADIUS_MAX: 44,
+        FOOD_HITBOX_SCALE: 0.7, // < 1.0 уменьшает хитбокс (коллизии) без изменения размера картинки
+        FOOD_FALL_SPEED: 230, // px/sec (стартовая скорость падения)
+        FOOD_FALL_ACCEL_PER_SEC: 11, // px/sec^2
+        FOOD_FALL_SPEED_MAX: 560, // px/sec
+        FOOD_SPAWN_PER_SEC: 1.7, // еды будет больше
+        FOOD_SPRITES: [
+          "./assets/strawberry.png",
+          "./assets/chicken.png",
+          "./assets/cucumber.png",
+          "./assets/cake.png",
+          "./assets/carrots.png",
+          "./assets/dates.png",
+        ],
+        HEAL_SPRITE: "./assets/heal.png",
+        HEAL_SPAWN_PER_SEC: 0.04, // ещё меньше шанс (примерно 1 раз в ~25 сек в среднем)
+        HEAL_RADIUS: 34,
+        HEAL_HITBOX_SCALE: 0.6,
+
+        BAD_SPRITE: "./assets/bad.png",
+        BAD_SPAWN_PER_SEC: 0.008, // очень редкий предмет (примерно 1 раз в ~125 сек в среднем)
+        BAD_RADIUS: 32,
+        BAD_HITBOX_SCALE: 0.55,
+
+        // чтобы новые объекты не спавнились поверх друг друга
+        SPAWN_NO_OVERLAP_PADDING: 6,
+        SPAWN_MAX_ATTEMPTS: 8,
+
+        COLORS: ["#ff6b6b", "#ffd166", "#06d6a0", "#4cc9f0", "#c77dff", "#f72585", "#ff9f1c"],
+        BACKDROP_STARS: 80,
+
+        STORAGE_KEY: "ramadan_sim_dodge_highscore_v1",
+      };
+
+      // =========================
+      // Утилиты
+      // =========================
+      const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+      const rand = (min, max) => Math.random() * (max - min) + min;
+      const randInt = (min, max) => Math.floor(rand(min, max + 1));
+
+      function circleRectCollides(cx, cy, r, rx, ry, rw, rh) {
+        const closestX = clamp(cx, rx, rx + rw);
+        const closestY = clamp(cy, ry, ry + rh);
+        const dx = cx - closestX;
+        const dy = cy - closestY;
+        return (dx * dx + dy * dy) <= (r * r);
+      }
+
+      function loadHighScore() {
+        const raw = localStorage.getItem(CONFIG.STORAGE_KEY);
+        const n = Number(raw);
+        return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0;
+      }
+
+      function saveHighScore(v) {
+        localStorage.setItem(CONFIG.STORAGE_KEY, String(Math.floor(v)));
+      }
+
+      // =========================
+      // UI
+      // =========================
+      const canvas = document.getElementById("game");
+      const ctx = canvas.getContext("2d", { alpha: true });
+
+      const elMenu = document.getElementById("menu");
+      const elGameOver = document.getElementById("gameOver");
+      const elPaused = document.getElementById("paused");
+
+      const elScore = document.getElementById("score");
+      const elHighScore = document.getElementById("highScore");
+      const elLives = document.getElementById("lives");
+      const elGameOverBadIcon = document.getElementById("gameOverBadIcon");
+      const elFinalScore = document.getElementById("finalScore");
+      const elFinalHighScore = document.getElementById("finalHighScore");
+
+      const startBtn = document.getElementById("startBtn");
+      const skinBtn = document.getElementById("skinBtn");
+      const playAgainBtn = document.getElementById("playAgainBtn");
+      const backToMenuBtn = document.getElementById("backToMenuBtn");
+      const skinPicker = document.getElementById("skinPicker");
+      const skinApplyBtn = document.getElementById("skinApplyBtn");
+      const skinCloseBtn = document.getElementById("skinCloseBtn");
+      const avatarOptionsEl = document.getElementById("avatarOptions");
+      const bgOptionsEl = document.getElementById("bgOptions");
+
+      function loadImages(urls) {
+        return Promise.all(urls.map((src) => new Promise((resolve, reject) => {
+          const img = new Image();
+          img.onload = () => resolve(img);
+          img.onerror = () => reject(new Error(`Не удалось загрузить изображение: ${src}`));
+          img.src = src;
+        })));
+      }
+
+      function showMenu() {
+        elMenu.hidden = false;
+        elGameOver.hidden = true;
+        elPaused.hidden = true;
+        if (elGameOverBadIcon) elGameOverBadIcon.hidden = true;
+        if (skinPicker) skinPicker.hidden = true;
+      }
+      function showGame() {
+        elMenu.hidden = true;
+        elGameOver.hidden = true;
+      }
+      function showGameOver(finalScore, high, reason) {
+        elFinalScore.textContent = String(finalScore);
+        elFinalHighScore.textContent = String(high);
+        if (elGameOverBadIcon) elGameOverBadIcon.hidden = reason !== "bad";
+        elGameOver.hidden = false;
+        elPaused.hidden = true;
+      }
+      function setPausedUI(isPaused) {
+        elPaused.hidden = !isPaused;
+      }
+      function setScoreUI(score) {
+        elScore.textContent = String(score);
+      }
+      function setHighUI(high) {
+        elHighScore.textContent = String(high);
+      }
+      function setLivesUI(lives) {
+        elLives.textContent = "❤".repeat(Math.max(0, lives));
+      }
+
+      // =========================
+      // Состояния игры
+      // =========================
+      const GameState = Object.freeze({
+        MENU: "menu",
+        PLAYING: "playing",
+        GAME_OVER: "game_over",
+      });
+
+      let state = GameState.MENU;
+      let paused = false;
+      let resumeCountdown = 0;
+
+      // =========================
+      // Скины (аватар + фон)
+      // =========================
+      const SKIN_AVATAR_KEY = "ramadan_sim_skin_avatar_v1";
+      const SKIN_BG_KEY = "ramadan_sim_skin_bg_v1";
+
+      let activeAvatarId = localStorage.getItem(SKIN_AVATAR_KEY) || "default";
+      let activeBgId = localStorage.getItem(SKIN_BG_KEY) || "default";
+
+      // значения, которые пользователь выбирает в окне
+      let pendingAvatarId = activeAvatarId;
+      let pendingBgId = activeBgId;
+
+      function applySiteBackgroundForSkin(bgId) {
+        let value = "#d5b776";
+        if (bgId === "sunrise") {
+          value = "linear-gradient(135deg,#d5b776 0%, #7cf7c0 55%, #4cc9f0 100%)";
+        } else if (bgId === "night") {
+          value = "linear-gradient(135deg,#0f1220 0%, #1a1f3a 50%, #0a0c14 100%)";
+        }
+        document.documentElement.style.setProperty("--site-bg", value);
+      }
+
+      function applyAvatarForSkin(avatarId) {
+        if (!avatarSprites || Object.keys(avatarSprites).length === 0) return;
+        playerSprite = avatarSprites[avatarId] || avatarSprites.default || null;
+      }
+
+      // =========================
+      // Ввод
+      // =========================
+      const input = {
+        left: false,
+        right: false,
+      };
+
+      function shouldPreventScrollForKey(e) {
+        return ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", " "].includes(e.key);
+      }
+
+      window.addEventListener("keydown", (e) => {
+        if (shouldPreventScrollForKey(e)) e.preventDefault();
+
+        if (e.key === "ArrowLeft") input.left = true;
+        if (e.key === "ArrowRight") input.right = true;
+
+        // e.code не зависит от раскладки клавиатуры (в отличие от e.key)
+        if (e.code === "KeyP" && state === GameState.PLAYING) {
+          if (paused) {
+            paused = false;
+            resumeCountdown = CONFIG.UNPAUSE_COUNTDOWN_SEC;
+            setPausedUI(false);
+            if (audioCtx.bgAudio) audioCtx.bgAudio.play().catch(() => {});
+          } else {
+            paused = true;
+            resumeCountdown = 0;
+            setPausedUI(true);
+            if (audioCtx.bgAudio) audioCtx.bgAudio.pause();
+          }
+        }
+      }, { passive: false });
+
+      window.addEventListener("keyup", (e) => {
+        if (e.key === "ArrowLeft") input.left = false;
+        if (e.key === "ArrowRight") input.right = false;
+      });
+
+      // =========================
+      // Игровые объекты
+      // =========================
+      const player = {
+        // x/y — позиция хитбокса (для коллизий и ограничения движения)
+        w: CONFIG.PLAYER_HITBOX_W,
+        h: CONFIG.PLAYER_HITBOX_H,
+        drawW: CONFIG.PLAYER_DRAW_W,
+        drawH: CONFIG.PLAYER_DRAW_H,
+        hitboxOffsetY: CONFIG.PLAYER_HITBOX_OFFSET_Y,
+        x: (CONFIG.CANVAS_W - CONFIG.PLAYER_HITBOX_W) / 2,
+        y: CONFIG.CANVAS_H - CONFIG.PLAYER_HITBOX_H - CONFIG.PLAYER_Y_MARGIN + CONFIG.PLAYER_HITBOX_OFFSET_Y,
+        speed: CONFIG.PLAYER_SPEED,
+        facing: 1, // 1 = вправо, -1 = влево
+        alpha: 1,
+        color: "#7cf7c0",
+        update(dt) {
+          const dir = (input.right ? 1 : 0) - (input.left ? 1 : 0);
+          if (dir < 0) this.facing = -1;
+          if (dir > 0) this.facing = 1;
+          this.x += dir * this.speed * dt;
+          this.x = clamp(this.x, 0, CONFIG.CANVAS_W - this.w);
+        },
+        draw(g) {
+          g.save();
+          g.globalAlpha = this.alpha;
+          if (playerSprite && playerSprite.naturalWidth && playerSprite.naturalHeight) {
+            const ar = playerSprite.naturalWidth / playerSprite.naturalHeight;
+            let w = this.drawW, h = this.drawH;
+            if (ar >= 1) {
+              w = this.drawW;
+              h = this.drawW / ar;
+            } else {
+              h = this.drawH;
+              w = this.drawH * ar;
+            }
+
+            // Рисуем PNG крупнее, центрируя относительно хитбокса
+            const cx = this.x + this.w / 2;
+            const cy = this.y + this.h / 2;
+            g.save();
+            g.translate(cx, cy);
+            g.scale(this.facing, 1);
+            g.drawImage(playerSprite, -w / 2, -h / 2, w, h);
+            g.restore();
+            g.restore();
+            return;
+          }
+
+          // Фолбэк, если картинка игрока не загрузилась
+          g.fillStyle = this.color;
+          g.fillRect(this.x, this.y, this.w, this.h);
+          g.fillStyle = "rgba(255,255,255,0.20)";
+          g.fillRect(this.x + 4, this.y + 4, this.w - 8, 6);
+          g.restore();
+        }
+      };
+
+      let foodSprites = [];
+      let playerSprite = null;
+      let avatarSprites = {};
+      let backgroundSprite = null;
+      let healSprite = null;
+      let badSprite = null;
+      let foodSpritesReady = false;
+
+      // =========================
+      // Звуковая система
+      // =========================
+      const audioCtx = {
+        damageIdx: 0,
+        bgIdx: 0,
+        bgAudio: null,
+        damageSounds: [],
+        bgSounds: [],
+        healSound: null,
+        gameoverSound: null,
+        isMuted: false,
+
+        init() {
+          this.damageSounds = CONFIG.SOUNDS.DAMAGE.map(src => new Audio(src));
+          this.bgSounds = CONFIG.SOUNDS.BG.map(src => {
+            const a = new Audio(src);
+            a.loop = false; // Будем вручную переключать по окончании
+            a.volume = CONFIG.BG_VOLUME;
+            a.onended = () => this.playNextBG();
+            return a;
+          });
+          this.healSound = new Audio(CONFIG.SOUNDS.HEAL);
+          this.gameoverSound = new Audio(CONFIG.SOUNDS.GAMEOVER);
+        },
+
+        playDamage() {
+          const s = this.damageSounds[this.damageIdx];
+          if (s) {
+            s.currentTime = 0;
+            s.play().catch(() => {});
+          }
+          this.damageIdx = (this.damageIdx + 1) % this.damageSounds.length;
+        },
+
+        playHeal() {
+          if (this.healSound) {
+            this.healSound.currentTime = 0;
+            this.healSound.play().catch(() => {});
+          }
+        },
+
+        playGameOver() {
+          this.stopBG();
+          if (this.gameoverSound) {
+            this.gameoverSound.currentTime = 0;
+            this.gameoverSound.play().catch(() => {});
+          }
+        },
+
+        startBG() {
+          this.stopBG();
+          this.bgIdx = randInt(0, this.bgSounds.length - 1);
+          this.playNextBG();
+        },
+
+        playNextBG() {
+          this.stopBG();
+          this.bgAudio = this.bgSounds[this.bgIdx];
+          if (this.bgAudio) {
+            this.bgAudio.currentTime = 0;
+            this.bgAudio.play().catch(() => {
+              // Автоплей может быть заблокирован до первого клика
+              console.log("BG audio play blocked");
+            });
+          }
+          this.bgIdx = (this.bgIdx + 1) % this.bgSounds.length;
+        },
+
+        stopBG() {
+          if (this.bgAudio) {
+            this.bgAudio.pause();
+            this.bgAudio.currentTime = 0;
+          }
+        }
+      };
+      audioCtx.init();
+
+      // Порядок важен: [еда..., хил, плохой предмет, игрок, фон]
+      loadImages([
+        ...CONFIG.FOOD_SPRITES,
+        CONFIG.HEAL_SPRITE,
+        CONFIG.BAD_SPRITE,
+        CONFIG.PLAYER_SPRITE,
+        CONFIG.PLAYER_WOMAN_SPRITE,
+        CONFIG.BACKGROUND_SPRITE
+      ]).then((imgs) => {
+        foodSprites = imgs.slice(0, CONFIG.FOOD_SPRITES.length);
+        healSprite = imgs[CONFIG.FOOD_SPRITES.length] || null;
+        badSprite = imgs[CONFIG.FOOD_SPRITES.length + 1] || null;
+        avatarSprites = {
+          default: imgs[CONFIG.FOOD_SPRITES.length + 2] || null,
+          woman: imgs[CONFIG.FOOD_SPRITES.length + 3] || null,
+        };
+        playerSprite = avatarSprites[activeAvatarId] || avatarSprites.default || null;
+        backgroundSprite = imgs[CONFIG.FOOD_SPRITES.length + 4] || null;
+        foodSpritesReady = true;
+        startBtn.disabled = false;
+        startBtn.textContent = "Start Game";
+      }).catch(() => {
+        // Если что-то не загрузилось, игра всё равно будет работать (рисуем круги).
+        foodSpritesReady = false;
+        healSprite = null;
+        badSprite = null;
+        playerSprite = null;
+        avatarSprites = {};
+        backgroundSprite = null;
+        startBtn.disabled = false;
+        startBtn.textContent = "Start Game";
+      });
+      startBtn.disabled = true;
+      startBtn.textContent = "Loading...";
+
+      function makeFood() {
+        const r = randInt(CONFIG.FOOD_RADIUS_MIN, CONFIG.FOOD_RADIUS_MAX);
+        return {
+          kind: "food",
+          r,
+          hitR: r * CONFIG.FOOD_HITBOX_SCALE,
+          x: rand(r, CONFIG.CANVAS_W - r),
+          y: -r - 2,
+          vy: CONFIG.FOOD_FALL_SPEED,
+          img: (foodSpritesReady && foodSprites.length)
+            ? foodSprites[randInt(0, foodSprites.length - 1)]
+            : null,
+          color: CONFIG.COLORS[randInt(0, CONFIG.COLORS.length - 1)],
+          scored: false,
+          update(dt) {
+            this.y += this.vy * dt;
+          },
+          draw(g) {
+            if (this.img && this.img.naturalWidth && this.img.naturalHeight) {
+              const size = this.r * 2;
+              const ar = this.img.naturalWidth / this.img.naturalHeight;
+              let w = size, h = size;
+              if (ar >= 1) {
+                w = size;
+                h = size / ar;
+              } else {
+                h = size;
+                w = size * ar;
+              }
+              g.drawImage(this.img, this.x - w / 2, this.y - h / 2, w, h);
+              return;
+            }
+
+            // Фолбэк: рисуем круг, если картинки не готовы/не загрузились
+            g.beginPath();
+            g.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+            g.fillStyle = this.color;
+            g.fill();
+            g.beginPath();
+            g.arc(this.x - this.r * 0.3, this.y - this.r * 0.3, this.r * 0.35, 0, Math.PI * 2);
+            g.fillStyle = "rgba(255,255,255,0.22)";
+            g.fill();
+          }
+        };
+      }
+
+      function makeHeal() {
+        const r = CONFIG.HEAL_RADIUS;
+        return {
+          kind: "heal",
+          r,
+          hitR: r * CONFIG.HEAL_HITBOX_SCALE,
+          x: rand(r, CONFIG.CANVAS_W - r),
+          y: -r - 2,
+          vy: CONFIG.FOOD_FALL_SPEED,
+          img: healSprite,
+          scored: true, // не участвует в системе очков
+          update(dt) {
+            this.y += this.vy * dt;
+          },
+          draw(g) {
+            if (this.img && this.img.naturalWidth && this.img.naturalHeight) {
+              const size = this.r * 2;
+              const ar = this.img.naturalWidth / this.img.naturalHeight;
+              let w = size, h = size;
+              if (ar >= 1) {
+                w = size;
+                h = size / ar;
+              } else {
+                h = size;
+                w = size * ar;
+              }
+              g.drawImage(this.img, this.x - w / 2, this.y - h / 2, w, h);
+              return;
+            }
+
+            // фолбэк: маленький светящийся круг
+            g.beginPath();
+            g.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+            g.fillStyle = "rgba(124,247,192,0.85)";
+            g.fill();
+          }
+        };
+      }
+
+      function makeBad() {
+        const r = CONFIG.BAD_RADIUS;
+        return {
+          kind: "bad",
+          r,
+          hitR: r * CONFIG.BAD_HITBOX_SCALE,
+          x: rand(r, CONFIG.CANVAS_W - r),
+          y: -r - 2,
+          vy: CONFIG.FOOD_FALL_SPEED,
+          img: badSprite,
+          scored: true, // не участвует в системе очков
+          update(dt) {
+            this.y += this.vy * dt;
+          },
+          draw(g) {
+            if (this.img && this.img.naturalWidth && this.img.naturalHeight) {
+              const size = this.r * 2;
+              const ar = this.img.naturalWidth / this.img.naturalHeight;
+              let w = size, h = size;
+              if (ar >= 1) {
+                w = size;
+                h = size / ar;
+              } else {
+                h = size;
+                w = size * ar;
+              }
+              g.drawImage(this.img, this.x - w / 2, this.y - h / 2, w, h);
+              return;
+            }
+
+            // Фолбэк: красный круг
+            g.beginPath();
+            g.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+            g.fillStyle = "rgba(255, 90, 90, 0.95)";
+            g.fill();
+          }
+        };
+      }
+
+      let foods = [];
+      let score = 0;
+      let highScore = loadHighScore();
+      let runTimeSec = 0;
+      let lives = 3;
+      let invincibleSec = 0;
+
+      function currentFallSpeed() {
+        return clamp(
+          CONFIG.FOOD_FALL_SPEED + CONFIG.FOOD_FALL_ACCEL_PER_SEC * runTimeSec,
+          0,
+          CONFIG.FOOD_FALL_SPEED_MAX
+        );
+      }
+
+      const stars = Array.from({ length: CONFIG.BACKDROP_STARS }, () => ({
+        x: Math.random() * CONFIG.CANVAS_W,
+        y: Math.random() * CONFIG.CANVAS_H,
+        r: Math.random() * 1.6 + 0.4,
+        a: Math.random() * 0.35 + 0.12,
+      }));
+
+      // =========================
+      // Спавн (пуассон: шанс спавна = rate*dt)
+      // =========================
+      function circlesOverlap(a, b) {
+        const dx = a.x - b.x;
+        const dy = a.y - b.y;
+        const rr = a.r + b.r + CONFIG.SPAWN_NO_OVERLAP_PADDING;
+        return (dx * dx + dy * dy) <= (rr * rr);
+      }
+
+      function spawnNonOverlapping(makeFn) {
+        for (let attempt = 0; attempt < CONFIG.SPAWN_MAX_ATTEMPTS; attempt++) {
+          const obj = makeFn();
+          let ok = true;
+          for (const other of foods) {
+            if (circlesOverlap(obj, other)) {
+              ok = false;
+              break;
+            }
+          }
+          if (ok) {
+            foods.push(obj);
+            return true;
+          }
+        }
+        return false;
+      }
+
+      function spawnFoods(dt) {
+        const p = CONFIG.FOOD_SPAWN_PER_SEC * dt;
+        if (Math.random() < p) spawnNonOverlapping(makeFood);
+
+        const pHeal = CONFIG.HEAL_SPAWN_PER_SEC * dt;
+        if (Math.random() < pHeal) spawnNonOverlapping(makeHeal);
+
+        const pBad = CONFIG.BAD_SPAWN_PER_SEC * dt;
+        if (Math.random() < pBad) spawnNonOverlapping(makeBad);
+      }
+
+      // =========================
+      // Игровой цикл
+      // =========================
+      let lastT = performance.now();
+
+      function resetRun() {
+        paused = false;
+        setPausedUI(false);
+        resumeCountdown = 0;
+
+        score = 0;
+        setScoreUI(score);
+
+        foods = [];
+        runTimeSec = 0;
+        lives = 3;
+        invincibleSec = 0;
+        setLivesUI(lives);
+        player.alpha = 1;
+        player.speed = CONFIG.PLAYER_SPEED;
+
+        player.w = CONFIG.PLAYER_HITBOX_W;
+        player.h = CONFIG.PLAYER_HITBOX_H;
+        player.drawW = CONFIG.PLAYER_DRAW_W;
+        player.drawH = CONFIG.PLAYER_DRAW_H;
+        player.hitboxOffsetY = CONFIG.PLAYER_HITBOX_OFFSET_Y;
+        player.x = (CONFIG.CANVAS_W - player.w) / 2;
+        player.y = CONFIG.CANVAS_H - player.h - CONFIG.PLAYER_Y_MARGIN + player.hitboxOffsetY;
+
+        highScore = loadHighScore();
+        setHighUI(highScore);
+      }
+
+      function startGame() {
+        resetRun();
+        state = GameState.PLAYING;
+        showGame();
+        audioCtx.startBG();
+      }
+
+      function endGame(reason) {
+        state = GameState.GAME_OVER;
+        const r = reason || "lives";
+        paused = false;
+        setPausedUI(false);
+        audioCtx.playGameOver();
+
+        if (score > highScore) {
+          highScore = score;
+          saveHighScore(highScore);
+        }
+        setHighUI(highScore);
+        showGameOver(score, highScore, r);
+      }
+
+      function update(dt) {
+        if (state !== GameState.PLAYING) return;
+        if (paused) return;
+
+        if (resumeCountdown > 0) {
+          resumeCountdown = Math.max(0, resumeCountdown - dt);
+          return;
+        }
+
+        runTimeSec += dt;
+        const fallSpeedNow = currentFallSpeed();
+
+        // Игрок ускоряется вместе с едой: завязываем скорость от текущей скорости падения
+        const baseFoodSpeed = Math.max(0.0001, CONFIG.FOOD_FALL_SPEED);
+        const speedFactor = fallSpeedNow / baseFoodSpeed;
+        player.speed = clamp(
+          CONFIG.PLAYER_SPEED * speedFactor,
+          CONFIG.PLAYER_SPEED,
+          CONFIG.PLAYER_SPEED_MAX
+        );
+
+        player.update(dt);
+        spawnFoods(dt);
+
+        for (const f of foods) {
+          f.vy = fallSpeedNow;
+          f.update(dt);
+        }
+
+        const passLine = player.y + player.h;
+        for (const f of foods) {
+          if (f.kind !== "food") continue; // очки только за обычную еду
+          if (!f.scored && (f.y - f.r) > passLine) {
+            f.scored = true;
+            score += 1;
+            setScoreUI(score);
+          }
+        }
+
+        invincibleSec = Math.max(0, invincibleSec - dt);
+        player.alpha = invincibleSec > 0 ? CONFIG.PLAYER_INVINCIBLE_ALPHA : 1;
+
+        // Плохой предмет: при подборе сразу проигрыш, даже если есть неуязвимость
+        for (const f of foods) {
+          if (f.kind !== "bad") continue;
+          if (circleRectCollides(f.x, f.y, f.hitR ?? f.r, player.x, player.y, player.w, player.h)) {
+            endGame("bad");
+            return;
+          }
+        }
+
+        // Хил можно подбирать всегда (даже во время неуязвимости)
+        for (const f of foods) {
+          if (f.kind !== "heal") continue;
+          if (circleRectCollides(f.x, f.y, f.hitR ?? f.r, player.x, player.y, player.w, player.h)) {
+            if (lives < 3) {
+              lives += 1;
+              setLivesUI(lives);
+              audioCtx.playHeal();
+            }
+            f.y = CONFIG.CANVAS_H + 999; // убрать предмет
+          }
+        }
+
+        // Урон — только если неуязвимость закончилась
+        if (invincibleSec <= 0) {
+          for (const f of foods) {
+            if (f.kind !== "food") continue; // урон только от обычной еды
+            if (circleRectCollides(f.x, f.y, f.hitR ?? f.r, player.x, player.y, player.w, player.h)) {
+              lives -= 1;
+              setLivesUI(lives);
+              if (lives <= 0) {
+                endGame("lives");
+                return;
+              }
+              audioCtx.playDamage();
+              invincibleSec = CONFIG.INVINCIBLE_SEC;
+              break;
+            }
+          }
+        }
+
+        foods = foods.filter(f => (f.y - f.r) < (CONFIG.CANVAS_H + 40));
+      }
+
+      function render() {
+        ctx.clearRect(0, 0, CONFIG.CANVAS_W, CONFIG.CANVAS_H);
+
+        if (activeBgId === "default" && backgroundSprite && backgroundSprite.naturalWidth && backgroundSprite.naturalHeight) {
+          const iw = backgroundSprite.naturalWidth;
+          const ih = backgroundSprite.naturalHeight;
+          const s = Math.max(CONFIG.CANVAS_W / iw, CONFIG.CANVAS_H / ih);
+          const dw = iw * s;
+          const dh = ih * s;
+          ctx.drawImage(
+            backgroundSprite,
+            (CONFIG.CANVAS_W - dw) / 2,
+            (CONFIG.CANVAS_H - dh) / 2,
+            dw,
+            dh
+          );
+        } else {
+          let grad = ctx.createLinearGradient(0, 0, CONFIG.CANVAS_W, CONFIG.CANVAS_H);
+          if (activeBgId === "sunrise") {
+            grad.addColorStop(0, "#d5b776");
+            grad.addColorStop(0.55, "#7cf7c0");
+            grad.addColorStop(1, "#4cc9f0");
+          } else if (activeBgId === "night") {
+            grad.addColorStop(0, "#0f1220");
+            grad.addColorStop(0.5, "#1a1f3a");
+            grad.addColorStop(1, "#0a0c14");
+          } else {
+            grad.addColorStop(0, "#0f1220");
+            grad.addColorStop(1, "#0a0c14");
+          }
+          ctx.fillStyle = grad;
+          ctx.fillRect(0, 0, CONFIG.CANVAS_W, CONFIG.CANVAS_H);
+        }
+
+        ctx.fillStyle = "rgba(0,0,0,0.18)";
+        ctx.fillRect(0, 0, CONFIG.CANVAS_W, CONFIG.CANVAS_H);
+
+        for (const s of stars) {
+          ctx.fillStyle = `rgba(233,236,255,${s.a})`;
+          ctx.beginPath();
+          ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        player.draw(ctx);
+        for (const f of foods) f.draw(ctx);
+
+        ctx.fillStyle = "rgba(255,255,255,0.06)";
+        ctx.fillRect(0, player.y + player.h + 10, CONFIG.CANVAS_W, 2);
+
+        if (state === GameState.PLAYING && !paused && resumeCountdown > 0) {
+          const n = Math.ceil(resumeCountdown);
+          ctx.save();
+          ctx.fillStyle = "rgba(0,0,0,0.45)";
+          ctx.fillRect(0, 0, CONFIG.CANVAS_W, CONFIG.CANVAS_H);
+          ctx.font = "900 96px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillStyle = "rgba(233,236,255,0.95)";
+          ctx.fillText(String(n), CONFIG.CANVAS_W / 2, CONFIG.CANVAS_H / 2);
+          ctx.restore();
+        }
+      }
+
+      function gameLoop(now) {
+        const dt = Math.min(0.05, (now - lastT) / 1000);
+        lastT = now;
+
+        update(dt);
+        render();
+
+        requestAnimationFrame(gameLoop);
+      }
+
+      // =========================
+      // Масштабирование (логика остаётся 800×600)
+      // =========================
+      function resizeCanvasCSS() {
+        // Canvas остаётся 800×600 по внутренним координатам.
+      }
+      window.addEventListener("resize", resizeCanvasCSS);
+
+      // =========================
+      // Кнопки / Навигация: меню → игра → game over
+      // =========================
+      startBtn.addEventListener("click", () => startGame());
+      playAgainBtn.addEventListener("click", () => {
+        state = GameState.MENU;
+        showMenu();
+      });
+      backToMenuBtn.addEventListener("click", () => {
+        state = GameState.MENU;
+        showMenu();
+      });
+
+      // =========================
+      // Скины
+      // =========================
+      function setSkinSelectedUI() {
+        if (!avatarOptionsEl || !bgOptionsEl) return;
+
+        const avatarBtns = avatarOptionsEl.querySelectorAll(".skinOption[data-avatar]");
+        avatarBtns.forEach((btn) => {
+          btn.classList.toggle("selected", btn.dataset.avatar === String(pendingAvatarId));
+        });
+
+        const bgBtns = bgOptionsEl.querySelectorAll(".skinOption[data-bg]");
+        bgBtns.forEach((btn) => {
+          btn.classList.toggle("selected", btn.dataset.bg === String(pendingBgId));
+        });
+      }
+
+      function openSkinPicker() {
+        pendingAvatarId = activeAvatarId;
+        pendingBgId = activeBgId;
+        setSkinSelectedUI();
+
+        if (skinPicker) skinPicker.hidden = false;
+        if (elMenu) elMenu.hidden = true;
+        if (elGameOver) elGameOver.hidden = true;
+        if (elPaused) elPaused.hidden = true;
+      }
+
+      function closeSkinPicker() {
+        if (skinPicker) skinPicker.hidden = true;
+        showMenu();
+      }
+
+      if (skinBtn) {
+        skinBtn.addEventListener("click", () => {
+          // В игре скины не переключаем, только в меню
+          if (state !== GameState.MENU) return;
+          openSkinPicker();
+        });
+      }
+
+      if (skinApplyBtn) {
+        skinApplyBtn.addEventListener("click", () => {
+          activeAvatarId = pendingAvatarId;
+          activeBgId = pendingBgId;
+          localStorage.setItem(SKIN_AVATAR_KEY, activeAvatarId);
+          localStorage.setItem(SKIN_BG_KEY, activeBgId);
+          applySiteBackgroundForSkin(activeBgId);
+          applyAvatarForSkin(activeAvatarId);
+          closeSkinPicker();
+        });
+      }
+
+      if (skinCloseBtn) {
+        skinCloseBtn.addEventListener("click", () => {
+          closeSkinPicker();
+        });
+      }
+
+      if (avatarOptionsEl) {
+        avatarOptionsEl.addEventListener("click", (e) => {
+          const btn = e.target && e.target.closest ? e.target.closest(".skinOption[data-avatar]") : null;
+          if (!btn) return;
+          pendingAvatarId = btn.dataset.avatar;
+          setSkinSelectedUI();
+        });
+      }
+
+      if (bgOptionsEl) {
+        bgOptionsEl.addEventListener("click", (e) => {
+          const btn = e.target && e.target.closest ? e.target.closest(".skinOption[data-bg]") : null;
+          if (!btn) return;
+          pendingBgId = btn.dataset.bg;
+          setSkinSelectedUI();
+        });
+      }
+
+      // =========================
+      // Инициализация
+      // =========================
+      setHighUI(highScore);
+      setScoreUI(0);
+      showMenu();
+
+      // первично синхронизируем выбранные превью в окне скинов
+      pendingAvatarId = activeAvatarId;
+      pendingBgId = activeBgId;
+      setSkinSelectedUI();
+      applySiteBackgroundForSkin(activeBgId);
+      applyAvatarForSkin(activeAvatarId);
+
+      resizeCanvasCSS();
+      requestAnimationFrame((t) => {
+        lastT = t;
+        requestAnimationFrame(gameLoop);
+      });
+    })();
+  </script>
+</body>
+</html>
