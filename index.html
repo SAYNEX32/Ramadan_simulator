@@ -166,6 +166,29 @@
     }
     .pausedTag[hidden] { display: none; }
 
+    /* Мобильное управление */
+    .mobile-controls {
+      position: absolute;
+      inset: 0;
+      display: none;
+      pointer-events: none;
+      z-index: 10;
+    }
+    .mobile-btn {
+      position: absolute;
+      bottom: 0;
+      top: 0;
+      width: 40%;
+      pointer-events: auto;
+      background: rgba(255, 255, 255, 0.03);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .mobile-btn-left { left: 0; border-right: 1px solid rgba(255,255,255,0.05); }
+    .mobile-btn-right { right: 0; border-left: 1px solid rgba(255,255,255,0.05); }
+    
+    body.is-mobile .mobile-controls { display: block; }
+    body.is-mobile .help { display: none; }
+
     footer {
       color: var(--muted);
       font-size: 12px;
@@ -271,6 +294,11 @@
 
     <div class="stage" aria-label="Игровая сцена">
       <canvas id="game" width="800" height="600"></canvas>
+
+      <div class="mobile-controls">
+        <div id="btnLeft" class="mobile-btn mobile-btn-left"></div>
+        <div id="btnRight" class="mobile-btn mobile-btn-right"></div>
+      </div>
 
       <div class="hud" aria-hidden="true">
         <div class="pill"><strong>Счёт:</strong> <span id="score">0</span></div>
@@ -487,6 +515,17 @@
       const avatarOptionsEl = document.getElementById("avatarOptions");
       const bgOptionsEl = document.getElementById("bgOptions");
 
+      const btnLeft = document.getElementById("btnLeft");
+      const btnRight = document.getElementById("btnRight");
+
+      // =========================
+      // Определение устройства
+      // =========================
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      if (isMobile) {
+        document.body.classList.add("is-mobile");
+      }
+
       function loadImages(urls) {
         return Promise.all(urls.map((src) => new Promise((resolve, reject) => {
           const img = new Image();
@@ -605,6 +644,40 @@
       window.addEventListener("keyup", (e) => {
         if (e.key === "ArrowLeft") input.left = false;
         if (e.key === "ArrowRight") input.right = false;
+      });
+
+      // =========================
+      // Мобильное управление
+      // =========================
+      const handleTouch = (e, isDown, side) => {
+        e.preventDefault();
+        if (side === "left") input.left = isDown;
+        if (side === "right") input.right = isDown;
+      };
+
+      btnLeft.addEventListener("touchstart", (e) => handleTouch(e, true, "left"), { passive: false });
+      btnLeft.addEventListener("touchend", (e) => handleTouch(e, false, "left"), { passive: false });
+      btnLeft.addEventListener("touchcancel", (e) => handleTouch(e, false, "left"), { passive: false });
+
+      btnRight.addEventListener("touchstart", (e) => handleTouch(e, true, "right"), { passive: false });
+      btnRight.addEventListener("touchend", (e) => handleTouch(e, false, "right"), { passive: false });
+      btnRight.addEventListener("touchcancel", (e) => handleTouch(e, false, "right"), { passive: false });
+
+      // Пауза по тапу на HUD (для мобилок)
+      document.querySelector(".hud").addEventListener("touchstart", (e) => {
+        if (state === GameState.PLAYING) {
+          if (paused) {
+            paused = false;
+            resumeCountdown = CONFIG.UNPAUSE_COUNTDOWN_SEC;
+            setPausedUI(false);
+            if (audioCtx.bgAudio) audioCtx.bgAudio.play().catch(() => {});
+          } else {
+            paused = true;
+            resumeCountdown = 0;
+            setPausedUI(true);
+            if (audioCtx.bgAudio) audioCtx.bgAudio.pause();
+          }
+        }
       });
 
       // =========================
