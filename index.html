@@ -228,7 +228,31 @@
       inset: 0;
       display: none;
       pointer-events: none;
-      z-index: 10;
+      z-index: 5; /* Ниже оверлеев меню */
+    }
+    .mobile-btn {
+      position: absolute;
+      bottom: 0;
+      top: 0;
+      width: 50%;
+      pointer-events: auto;
+      background: transparent;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .mobile-btn-left { left: 0; }
+    .mobile-btn-right { right: 0; }
+    
+    body.is-mobile .mobile-controls { display: block; }
+    body.is-mobile .help { display: none; }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 18px;
+      background: radial-gradient(800px 500px at 50% 30%, rgba(0,0,0,0.55), rgba(0,0,0,0.75));
+      z-index: 200; /* Выше всего игрового процесса и кнопок управления */
     }
     .mobile-btn {
       position: absolute;
@@ -261,7 +285,7 @@
       pointer-events: auto;
       cursor: pointer;
     }
-    body.is-mobile .mobile-pause-btn { display: grid; }
+    body.is-mobile .mobile-pause-btn { display: none; } /* По умолчанию скрыта, включаем в showGame */
     .mobile-pause-btn svg { width: 24px; height: 24px; fill: white; }
 
     footer {
@@ -374,7 +398,7 @@
         <svg viewBox="0 0 24 24"><path d="M14,19H18V5H14M6,19H10V5H6V19Z"/></svg>
       </div>
 
-      <div class="mobile-controls">
+      <div id="mobileControls" class="mobile-controls" hidden>
         <div id="btnLeft" class="mobile-btn mobile-btn-left"></div>
         <div id="btnRight" class="mobile-btn mobile-btn-right"></div>
       </div>
@@ -617,6 +641,7 @@
 
       const btnLeft = document.getElementById("btnLeft");
       const btnRight = document.getElementById("btnRight");
+      const mobileControls = document.getElementById("mobileControls");
       const mobilePauseBtn = document.getElementById("mobilePauseBtn");
 
       // =========================
@@ -672,10 +697,20 @@
         elPaused.hidden = true;
         if (elGameOverBadIcon) elGameOverBadIcon.hidden = true;
         if (skinPicker) skinPicker.hidden = true;
+        
+        // Скрываем игровое управление в меню
+        mobileControls.hidden = true;
+        mobilePauseBtn.style.display = "none";
       }
       function showGame() {
         elMenu.hidden = true;
         elGameOver.hidden = true;
+        
+        // Показываем игровое управление только в игре
+        if (isMobile) {
+          mobileControls.hidden = false;
+          mobilePauseBtn.style.display = "grid";
+        }
       }
       function showGameOver(finalScore, high, reason) {
         elFinalScore.textContent = String(finalScore);
