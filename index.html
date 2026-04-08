@@ -94,7 +94,7 @@
 
     .hud {
       position: absolute;
-      inset: 12px 12px auto 12px;
+      inset: 12px 68px auto 12px; /* Оставляем место под кнопку паузы справа */
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -245,6 +245,25 @@
     body.is-mobile .mobile-controls { display: block; }
     body.is-mobile .help { display: none; }
 
+    /* Кнопка паузы для мобилок */
+    .mobile-pause-btn {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      width: 44px;
+      height: 44px;
+      background: rgba(0,0,0,0.4);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 10px;
+      display: none;
+      place-items: center;
+      z-index: 100;
+      pointer-events: auto;
+      cursor: pointer;
+    }
+    body.is-mobile .mobile-pause-btn { display: grid; }
+    .mobile-pause-btn svg { width: 24px; height: 24px; fill: white; }
+
     footer {
       color: var(--muted);
       font-size: 12px;
@@ -350,6 +369,10 @@
 
     <div class="stage" aria-label="Игровая сцена">
       <canvas id="game" width="800" height="600"></canvas>
+
+      <div id="mobilePauseBtn" class="mobile-pause-btn">
+        <svg viewBox="0 0 24 24"><path d="M14,19H18V5H14M6,19H10V5H6V19Z"/></svg>
+      </div>
 
       <div class="mobile-controls">
         <div id="btnLeft" class="mobile-btn mobile-btn-left"></div>
@@ -594,6 +617,7 @@
 
       const btnLeft = document.getElementById("btnLeft");
       const btnRight = document.getElementById("btnRight");
+      const mobilePauseBtn = document.getElementById("mobilePauseBtn");
 
       // =========================
       // Определение устройства
@@ -770,22 +794,32 @@
       btnRight.addEventListener("touchend", (e) => handleTouch(e, false, "right"), { passive: false });
       btnRight.addEventListener("touchcancel", (e) => handleTouch(e, false, "right"), { passive: false });
 
+      // Пауза для мобилок
+      function togglePause() {
+        if (state !== GameState.PLAYING) return;
+        if (paused) {
+          paused = false;
+          resumeCountdown = CONFIG.UNPAUSE_COUNTDOWN_SEC;
+          setPausedUI(false);
+          if (audioCtx.bgAudio) audioCtx.bgAudio.play().catch(() => {});
+        } else {
+          paused = true;
+          resumeCountdown = 0;
+          setPausedUI(true);
+          if (audioCtx.bgAudio) audioCtx.bgAudio.pause();
+        }
+      }
+
+      mobilePauseBtn.addEventListener("touchstart", (e) => {
+        e.preventDefault();
+        togglePause();
+      }, { passive: false });
+
       // Пауза по тапу на HUD (для мобилок)
       document.querySelector(".hud").addEventListener("touchstart", (e) => {
-        if (state === GameState.PLAYING) {
-          if (paused) {
-            paused = false;
-            resumeCountdown = CONFIG.UNPAUSE_COUNTDOWN_SEC;
-            setPausedUI(false);
-            if (audioCtx.bgAudio) audioCtx.bgAudio.play().catch(() => {});
-          } else {
-            paused = true;
-            resumeCountdown = 0;
-            setPausedUI(true);
-            if (audioCtx.bgAudio) audioCtx.bgAudio.pause();
-          }
-        }
-      });
+        e.preventDefault();
+        togglePause();
+      }, { passive: false });
 
       // =========================
       // Игровые объекты
