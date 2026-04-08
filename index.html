@@ -61,6 +61,28 @@
       overflow: hidden;
       background: rgba(0,0,0,0.25);
       border: 1px solid rgba(255,255,255,0.10);
+      transition: width 0.3s ease, height 0.3s ease;
+    }
+
+    body.is-mobile .wrap {
+      width: 100%;
+      height: 100%;
+      padding: 0;
+      max-width: none;
+    }
+    body.is-mobile .stage {
+      width: 100vw;
+      height: 100vh;
+      border-radius: 0;
+      border: none;
+    }
+    body.is-mobile canvas {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    body.is-mobile header, body.is-mobile footer {
+      display: none;
     }
 
     canvas {
@@ -212,13 +234,13 @@
       position: absolute;
       bottom: 0;
       top: 0;
-      width: 40%;
+      width: 50%;
       pointer-events: auto;
-      background: rgba(255, 255, 255, 0.03);
+      background: transparent;
       -webkit-tap-highlight-color: transparent;
     }
-    .mobile-btn-left { left: 0; border-right: 1px solid rgba(255,255,255,0.05); }
-    .mobile-btn-right { right: 0; border-left: 1px solid rgba(255,255,255,0.05); }
+    .mobile-btn-left { left: 0; }
+    .mobile-btn-right { right: 0; }
     
     body.is-mobile .mobile-controls { display: block; }
     body.is-mobile .help { display: none; }
@@ -582,14 +604,25 @@
         isMobile = mobile;
         if (isMobile) {
           document.body.classList.add("is-mobile");
-          CONFIG.CANVAS_H = 1000; // Увеличиваем высоту для мобилок
+          // Для мобилок используем вертикальное соотношение сторон
+          CONFIG.CANVAS_W = 600;
+          CONFIG.CANVAS_H = 1000;
+          canvas.width = 600;
           canvas.height = 1000;
-          // Пересчитываем позицию игрока
+          
+          // Пересчитываем позицию игрока для новой ширины
+          player.w = CONFIG.PLAYER_HITBOX_W;
+          player.x = (CONFIG.CANVAS_W - player.w) / 2;
           player.y = CONFIG.CANVAS_H - player.h - CONFIG.PLAYER_Y_MARGIN + player.hitboxOffsetY;
         } else {
           document.body.classList.remove("is-mobile");
+          CONFIG.CANVAS_W = 800;
           CONFIG.CANVAS_H = 600;
+          canvas.width = 800;
           canvas.height = 600;
+          
+          player.w = CONFIG.PLAYER_HITBOX_W;
+          player.x = (CONFIG.CANVAS_W - player.w) / 2;
           player.y = CONFIG.CANVAS_H - player.h - CONFIG.PLAYER_Y_MARGIN + player.hitboxOffsetY;
         }
         elDeviceSelect.hidden = true;
