@@ -12,7 +12,7 @@
       --muted: rgba(233,236,255,0.7);
       --accent: #7cf7c0;
       --danger: #ff6b6b;
-      --site-bg: #d5b776;
+      --site-bg: #cc9667;
     }
     * { box-sizing: border-box; }
     html, body { height: 100%; }
@@ -355,6 +355,28 @@
       border-color: rgba(124,247,192,0.95);
       box-shadow: 0 0 0 2px rgba(124,247,192,0.18);
     }
+    .skinOption.locked {
+      cursor: not-allowed;
+      opacity: 0.7;
+      filter: grayscale(1);
+      position: relative;
+    }
+    .skinOption.locked::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.4) url("./assets/lock.png") no-repeat center;
+      background-size: 32px;
+      border-radius: 12px;
+    }
+    .skinOption.locked:hover {
+      transform: none;
+      border-color: rgba(255,255,255,0.14);
+    }
+    .skinOption.locked .skinLabel {
+      color: var(--danger);
+    }
+
     .skinOption img {
       max-width: 72px;
       max-height: 72px;
@@ -581,6 +603,11 @@
         BACKDROP_STARS: 80,
 
         STORAGE_KEY: "ramadan_sim_dodge_highscore_v1",
+        UNLOCKS: {
+          WOMAN: 350,
+          SUNRISE: 100,
+          NIGHT: 200
+        }
       };
 
       // =========================
@@ -759,7 +786,7 @@
       let pendingBgId = activeBgId;
 
       function applySiteBackgroundForSkin(bgId) {
-        let value = "#d5b776";
+        let value = "#cc9667";
         if (bgId === "sunrise") {
           value = "linear-gradient(135deg,#d5b776 0%, #7cf7c0 55%, #4cc9f0 100%)";
         } else if (bgId === "night") {
@@ -869,13 +896,13 @@
         x: (CONFIG.CANVAS_W - CONFIG.PLAYER_HITBOX_W) / 2,
         y: CONFIG.CANVAS_H - CONFIG.PLAYER_HITBOX_H - CONFIG.PLAYER_Y_MARGIN + CONFIG.PLAYER_HITBOX_OFFSET_Y,
         speed: CONFIG.PLAYER_SPEED,
-        facing: 1, // 1 = вправо, -1 = влево
+        facing: -1, // -1 = влево (отзеркалено), 1 = вправо
         alpha: 1,
         color: "#7cf7c0",
         update(dt) {
           const dir = (input.right ? 1 : 0) - (input.left ? 1 : 0);
-          if (dir < 0) this.facing = -1;
-          if (dir > 0) this.facing = 1;
+          if (dir < 0) this.facing = 1; // При движении влево смотрим влево (инвертировано)
+          if (dir > 0) this.facing = -1; // При движении вправо смотрим вправо (инвертировано)
           this.x += dir * this.speed * dt;
           this.x = clamp(this.x, 0, CONFIG.CANVAS_W - this.w);
         },
@@ -1460,15 +1487,44 @@
       // =========================
       function setSkinSelectedUI() {
         if (!avatarOptionsEl || !bgOptionsEl) return;
+        const currentHigh = loadHighScore();
 
         const avatarBtns = avatarOptionsEl.querySelectorAll(".skinOption[data-avatar]");
         avatarBtns.forEach((btn) => {
-          btn.classList.toggle("selected", btn.dataset.avatar === String(pendingAvatarId));
+          const id = btn.dataset.avatar;
+          let locked = false;
+          if (id === "woman" && currentHigh < CONFIG.UNLOCKS.WOMAN) locked = true;
+          
+          btn.classList.toggle("locked", locked);
+          btn.classList.toggle("selected", id === String(pendingAvatarId) && !locked);
+          
+          const label = btn.querySelector(".skinLabel");
+          if (locked) {
+            label.textContent = `${CONFIG.UNLOCKS.WOMAN} pts`;
+          } else {
+            label.textContent = id === "woman" ? "Женщина" : "Стандарт";
+          }
         });
 
         const bgBtns = bgOptionsEl.querySelectorAll(".skinOption[data-bg]");
         bgBtns.forEach((btn) => {
-          btn.classList.toggle("selected", btn.dataset.bg === String(pendingBgId));
+          const id = btn.dataset.bg;
+          let locked = false;
+          let req = 0;
+          if (id === "sunrise") { locked = currentHigh < CONFIG.UNLOCKS.SUNRISE; req = CONFIG.UNLOCKS.SUNRISE; }
+          if (id === "night") { locked = currentHigh < CONFIG.UNLOCKS.NIGHT; req = CONFIG.UNLOCKS.NIGHT; }
+          
+          btn.classList.toggle("locked", locked);
+          btn.classList.toggle("selected", id === String(pendingBgId) && !locked);
+
+          const label = btn.querySelector(".skinLabel");
+          if (locked) {
+            label.textContent = `${req} pts`;
+          } else {
+            if (id === "default") label.textContent = "Классика";
+            if (id === "sunrise") label.textContent = "Рассвет";
+            if (id === "night") label.textContent = "Ночь";
+          }
         });
       }
 
@@ -1498,8 +1554,18 @@
 
       if (skinApplyBtn) {
         skinApplyBtn.addEventListener("click", () => {
-          activeAvatarId = pendingAvatarId;
-          activeBgId = pendingBgId;
+          // Проверяем, не заблокированы ли выбранные скины
+          const currentHigh = loadHighScore();
+          let canApplyAvatar = true;
+          let canApplyBg = true;
+
+          if (pendingAvatarId === "woman" && currentHigh < CONFIG.UNLOCKS.WOMAN) canApplyAvatar = false;
+          if (pendingBgId === "sunrise" && currentHigh < CONFIG.UNLOCKS.SUNRISE) canApplyBg = false;
+          if (pendingBgId === "night" && currentHigh < CONFIG.UNLOCKS.NIGHT) canApplyBg = false;
+
+          if (canApplyAvatar) activeAvatarId = pendingAvatarId;
+          if (canApplyBg) activeBgId = pendingBgId;
+
           localStorage.setItem(SKIN_AVATAR_KEY, activeAvatarId);
           localStorage.setItem(SKIN_BG_KEY, activeBgId);
           applySiteBackgroundForSkin(activeBgId);
@@ -1517,7 +1583,7 @@
       if (avatarOptionsEl) {
         avatarOptionsEl.addEventListener("click", (e) => {
           const btn = e.target && e.target.closest ? e.target.closest(".skinOption[data-avatar]") : null;
-          if (!btn) return;
+          if (!btn || btn.classList.contains("locked")) return;
           pendingAvatarId = btn.dataset.avatar;
           setSkinSelectedUI();
         });
@@ -1526,7 +1592,7 @@
       if (bgOptionsEl) {
         bgOptionsEl.addEventListener("click", (e) => {
           const btn = e.target && e.target.closest ? e.target.closest(".skinOption[data-bg]") : null;
-          if (!btn) return;
+          if (!btn || btn.classList.contains("locked")) return;
           pendingBgId = btn.dataset.bg;
           setSkinSelectedUI();
         });
